@@ -1,13 +1,14 @@
+#%%
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
-import dicom
+import pydicom as dicom
 import os
 import scipy.ndimage
 import matplotlib.pyplot as plt
-
+import nibabel as nib
 from skimage import measure, morphology
 
-
+#%%
 
 def load_scan(path):
     slices = [dicom.read_file(path + '/' + s) for s in os.listdir(path)]
@@ -30,24 +31,21 @@ def load_scan(path):
         
     return slices
 
-def get_pixels_hu(slices):
-    image = np.stack([s.pixel_array for s in slices])
+
+def load_scan_nifti(path):
+    nifti = nib.load(path)
+    image = nifti.get_fdata()
+        
+    return image, nifti
+
+def get_pixels_hu(image, nifti):
+    #image = np.stack([s.pixel_array for s in slices])
+    image = np.transpose(image, (2, 0, 1))
     # Convert to int16 (from sometimes int16), 
     # should be possible as values should always be low enough (<32k)
     image = image.astype(np.int16)
-    
-    # Convert to Hounsfield units (HU)
-    for slice_number in range(len(slices)):        
-        intercept = slices[slice_number].RescaleIntercept
-        slope = slices[slice_number].RescaleSlope
-        
-        if slope != 1:
-            image[slice_number] = slope * image[slice_number].astype(np.float64)
-            image[slice_number] = image[slice_number].astype(np.int16)
-            
-        image[slice_number] += np.int16(intercept)
-    
-    return np.array(image, dtype=np.int16), np.array([slices[0].SliceThickness] + slices[0].PixelSpacing, dtype=np.float32)
+
+    return np.array(image, dtype=np.int16), np.array([nifti.header['pixdim'][3]] + [nifti.header['pixdim'][1], nifti.header['pixdim'][2]], dtype=np.float32)
 
 def binarize_per_slice(image, spacing, intensity_th=-600, sigma=1, area_th=30, eccen_th=0.99, bg_patch_size=10):
     bw = np.zeros(image.shape, dtype=bool)
@@ -226,8 +224,9 @@ def two_lung_only(bw, spacing, max_iter=22, max_ratio=4.8):
     return bw1, bw2, bw
 
 def step1_python(case_path):
-    case = load_scan(case_path)
-    case_pixels, spacing = get_pixels_hu(case)
+    #case = load_scan(case_path)
+    image, nifti = load_scan_nifti(case_path)
+    case_pixels, spacing = get_pixels_hu(image, nifti)
     bw = binarize_per_slice(case_pixels, spacing)
     flag = 0
     cut_num = 0
@@ -243,13 +242,20 @@ def step1_python(case_path):
     return case_pixels, bw1, bw2, spacing
     
 if __name__ == '__main__':
-    INPUT_FOLDER = '/work/DataBowl3/stage1/stage1/'
-    patients = os.listdir(INPUT_FOLDER)
-    patients.sort()
-    case_pixels, m1, m2, spacing = step1_python(os.path.join(INPUT_FOLDER,patients[25]))
+    #INPUT_FOLDER = '/work/DataBowl3/stage1/stage1/'
+    INPUT_FOLDER = '/home/brandtj/Documents/data/nlst/sub_batch_A.nosync/100158/100158$1.2.840.113654.2.55.81185422866512279860334872268089089087$1.2.840.113654.2.55.310609767809678441522963921292898109470$STANDARD$2.5$2.nii.gz'
+    patients = list(str(INPUT_FOLDER).split('/'))[-2]
+    #patients.sort()
+    #case_pixels, m1, m2, spacing = step1_python(os.path.join(INPUT_FOLDER, patients[0]))
+    case_pixels, m1, m2, spacing = step1_python(INPUT_FOLDER)
+
+#%%
+
     plt.imshow(m1[60])
+    plt.show()
     plt.figure()
     plt.imshow(m2[60])
+    plt.show()
 #     first_patient = load_scan(INPUT_FOLDER + patients[25])
 #     first_patient_pixels, spacing = get_pixels_hu(first_patient)
 #     plt.hist(first_patient_pixels.flatten(), bins=80, color='c')

@@ -13,6 +13,7 @@ from step1 import step1_python
 import warnings
 
 #lets see if we can make it work with niftis
+#--> yes we can
 
 def process_mask(mask):
     convex_mask = np.copy(mask)
@@ -128,3 +129,10 @@ def full_prep(data_path,prep_folder,n_worker = None,use_existing=True):
     pool.join()
     print('end preprocessing')
     return filelist
+
+
+if __name__ == '__main__':
+    data_path = '/home/brandtj/Documents/data/nlst/sub_batch_A.nosync/100158'
+    prep_folder = '/home/brandtj/Documents/data/nlst/test_preprocessing'
+    #savenpy(id,filelist,prep_folder,data_path,use_existing=True)
+    full_prep(data_path,prep_folder,n_worker=None,use_existing=False)
