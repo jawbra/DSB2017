@@ -12,6 +12,8 @@ from functools import partial
 from step1 import step1_python
 import warnings
 
+#lets see if we can make it work with niftis
+
 def process_mask(mask):
     convex_mask = np.copy(mask)
     for i_layer in range(convex_mask.shape[0]):
